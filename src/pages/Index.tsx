@@ -3,15 +3,45 @@ import { DetectionCard, AnalysisResult } from "@/components/DetectionCard";
 import { FileText, Image, Music, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
+import { User } from "@supabase/supabase-js";
 
 const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Check auth state
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const analyzeContent = async (
     input: File | string,
     contentType: "text" | "image" | "audio" | "video"
   ): Promise<AnalysisResult> => {
+    // Check if user is logged in
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to analyze content",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      throw new Error("Not authenticated");
+    }
+
     try {
       let requestBody: any = { contentType };
 
@@ -29,13 +59,19 @@ const Index = () => {
         requestBody.fileData = base64;
       }
 
+      // Get the user's session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No active session");
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-content`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify(requestBody),
         }

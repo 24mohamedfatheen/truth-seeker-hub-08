@@ -26,6 +26,25 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
+    // Get user from auth header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log('Analyzing content type:', contentType);
 
     let analysisPrompt = '';
@@ -230,6 +249,7 @@ Return ONLY JSON (max 80 words in details):
       const { error: dbError } = await supabase
         .from('analysis_results')
         .insert({
+          user_id: user.id, // Add user_id to the analysis
           content_type: contentType,
           authenticity_score: result.authenticity,
           detailed_analysis: result.details,
