@@ -2,6 +2,7 @@ import { Shield, Sparkles, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-detection.jpg";
+import { AuthHeader } from "@/components/AuthHeader";
 
 export const Hero = () => {
   const navigate = useNavigate();
@@ -12,6 +13,11 @@ export const Hero = () => {
 
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+      {/* Auth Header */}
+      <div className="absolute top-4 right-4 z-20">
+        <AuthHeader />
+      </div>
+
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
         <img 
