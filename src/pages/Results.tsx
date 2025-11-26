@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ExternalLink, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ArrowLeft, ExternalLink, CheckCircle, XCircle, ArrowUpDown, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,9 @@ const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const results = location.state as ResultsState;
+  
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc' | 'none'>('desc');
+  const [credibilityFilter, setCredibilityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
 
   if (!results) {
     navigate("/");
@@ -68,7 +72,38 @@ const Results = () => {
   };
 
   // Use sources with credibility scores if available, otherwise fall back to searchResults
-  const displaySources = results.sources || results.searchResults;
+  const baseSources = results.sources || results.searchResults;
+  
+  // Filter and sort sources
+  const displaySources = useMemo(() => {
+    if (!baseSources) return null;
+    
+    let filtered = baseSources;
+    
+    // Apply credibility filter (only if sources have credibility scores)
+    if (results.sources && credibilityFilter !== 'all') {
+      filtered = filtered.filter((source) => {
+        const src = source as Source;
+        if (!('credibilityScore' in src)) return true;
+        
+        if (credibilityFilter === 'high') return src.credibilityScore >= 80;
+        if (credibilityFilter === 'medium') return src.credibilityScore >= 60 && src.credibilityScore < 80;
+        if (credibilityFilter === 'low') return src.credibilityScore < 60;
+        return true;
+      });
+    }
+    
+    // Apply sorting (only if sources have credibility scores)
+    if (results.sources && sortOrder !== 'none') {
+      filtered = [...filtered].sort((a, b) => {
+        const aScore = (a as Source).credibilityScore ?? 50;
+        const bScore = (b as Source).credibilityScore ?? 50;
+        return sortOrder === 'desc' ? bScore - aScore : aScore - bScore;
+      });
+    }
+    
+    return filtered;
+  }, [baseSources, credibilityFilter, sortOrder, results.sources]);
 
   return (
     <div className="min-h-screen bg-background py-12 px-4">
@@ -132,10 +167,63 @@ const Results = () => {
         {displaySources && displaySources.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Source Verification</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Sources analyzed with credibility ratings
-              </p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>Source Verification</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Sources analyzed with credibility ratings
+                  </p>
+                </div>
+                
+                {results.sources && (
+                  <div className="flex gap-2">
+                    <div className="flex gap-1 border border-border rounded-md p-1">
+                      <Button
+                        variant={credibilityFilter === 'all' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setCredibilityFilter('all')}
+                        className="h-8 text-xs"
+                      >
+                        All
+                      </Button>
+                      <Button
+                        variant={credibilityFilter === 'high' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setCredibilityFilter('high')}
+                        className="h-8 text-xs"
+                      >
+                        High
+                      </Button>
+                      <Button
+                        variant={credibilityFilter === 'medium' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setCredibilityFilter('medium')}
+                        className="h-8 text-xs"
+                      >
+                        Medium
+                      </Button>
+                      <Button
+                        variant={credibilityFilter === 'low' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setCredibilityFilter('low')}
+                        className="h-8 text-xs"
+                      >
+                        Low
+                      </Button>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : sortOrder === 'asc' ? 'none' : 'desc')}
+                      className="h-8 gap-1"
+                    >
+                      <ArrowUpDown className="h-3 w-3" />
+                      {sortOrder === 'desc' ? 'High→Low' : sortOrder === 'asc' ? 'Low→High' : 'Sort'}
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
