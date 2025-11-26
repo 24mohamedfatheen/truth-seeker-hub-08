@@ -28,19 +28,22 @@ const Results = () => {
     return null;
   }
 
+  const isReal = results.status === "authentic" && results.authenticity >= 70;
+  
   const getStatusIcon = () => {
-    if (results.status === "authentic") {
-      return <CheckCircle className="h-8 w-8 text-green-500" />;
-    } else if (results.status === "suspicious") {
-      return <AlertTriangle className="h-8 w-8 text-yellow-500" />;
-    }
-    return <XCircle className="h-8 w-8 text-red-500" />;
+    return isReal ? (
+      <CheckCircle className="h-8 w-8 text-green-500" />
+    ) : (
+      <XCircle className="h-8 w-8 text-red-500" />
+    );
   };
 
   const getStatusColor = () => {
-    if (results.status === "authentic") return "bg-green-500/10 text-green-500";
-    if (results.status === "suspicious") return "bg-yellow-500/10 text-yellow-500";
-    return "bg-red-500/10 text-red-500";
+    return isReal ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500";
+  };
+
+  const getStatusText = () => {
+    return isReal ? "REAL" : "FAKE";
   };
 
   return (
@@ -66,27 +69,22 @@ const Results = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Authenticity Score</span>
-                <Badge className={getStatusColor()}>
-                  {results.status.toUpperCase()}
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-medium">Verification Result</span>
+                <Badge className={`${getStatusColor()} text-lg px-4 py-2`}>
+                  {getStatusText()}
                 </Badge>
               </div>
-              <div className="w-full bg-secondary rounded-full h-3">
-                <div
-                  className={`h-3 rounded-full transition-all ${
-                    results.authenticity >= 70
-                      ? "bg-green-500"
-                      : results.authenticity >= 40
-                      ? "bg-yellow-500"
-                      : "bg-red-500"
-                  }`}
-                  style={{ width: `${results.authenticity}%` }}
-                />
+              <div className={`w-full rounded-lg p-6 text-center ${
+                isReal ? "bg-green-500/10 border-2 border-green-500/30" : "bg-red-500/10 border-2 border-red-500/30"
+              }`}>
+                <p className={`text-2xl font-bold ${isReal ? "text-green-600" : "text-red-600"}`}>
+                  This content appears to be {isReal ? "REAL" : "FAKE"}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Confidence: {results.authenticity}%
+                </p>
               </div>
-              <p className="text-right text-sm text-muted-foreground mt-1">
-                {results.authenticity}%
-              </p>
             </div>
 
             <div>
