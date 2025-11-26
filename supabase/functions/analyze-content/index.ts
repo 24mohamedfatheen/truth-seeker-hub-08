@@ -88,14 +88,15 @@ Article to verify:
 ${content}
 
 Reference Sources Found:
-${searchResults.map((r: any, i: number) => `${i + 1}. ${r.title} - ${r.snippet}`).join('\n')}
+${searchResults.map((r: any, i: number) => `${i + 1}. ${r.title} - ${r.snippet} (URL: ${r.url})`).join('\n')}
 
 CRITICAL INSTRUCTIONS:
 - DO NOT mark as authentic just because sources exist
 - CHECK if the article's CLAIMS match what the sources actually say
 - LOOK for contradictions between article content and source information
 - IDENTIFY misleading headlines or manipulated facts
-- EVALUATE if sources are credible and actually support the article's claims
+- EVALUATE each source's credibility and reliability
+- RATE each source's credibility from 0-100 based on: domain authority, content quality, fact-checking reputation
 
 Determine if the news is REAL (true and verified) or FAKE (false, misleading, or unverified).
 
@@ -104,7 +105,15 @@ Return ONLY JSON (max 150 words in details):
   "authenticity": <0-100>,
   "status": "<authentic|fake>",
   "details": "<explain why this is real or fake, focus on fact-checking>",
-  "searchResults": ${JSON.stringify(searchResults)}
+  "sources": [
+    {
+      "title": "<source title>",
+      "url": "<source url>",
+      "snippet": "<source snippet>",
+      "credibilityScore": <0-100>,
+      "credibilityReason": "<brief reason for score, max 20 words>"
+    }
+  ]
 }`;
         
         messages = [
