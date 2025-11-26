@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { ArrowLeft, ExternalLink, CheckCircle, XCircle, ArrowUpDown, Filter } from "lucide-react";
+import { ArrowLeft, ExternalLink, CheckCircle, XCircle, ArrowUpDown, Shield, AlertCircle, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,13 @@ interface Source {
   snippet: string;
   credibilityScore: number;
   credibilityReason: string;
+}
+
+interface Claim {
+  claim: string;
+  verdict: 'verified' | 'contradicted' | 'unverified';
+  explanation: string;
+  sourceIndexes: number[];
 }
 
 interface SearchResult {
@@ -26,6 +33,7 @@ interface ResultsState {
   contentPreview: string;
   searchResults?: SearchResult[];
   sources?: Source[];
+  claims?: Claim[];
 }
 
 const Results = () => {
@@ -69,6 +77,39 @@ const Results = () => {
     if (score >= 80) return "High";
     if (score >= 60) return "Medium";
     return "Low";
+  };
+
+  const getVerdictIcon = (verdict: 'verified' | 'contradicted' | 'unverified') => {
+    switch (verdict) {
+      case 'verified':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'contradicted':
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      case 'unverified':
+        return <HelpCircle className="h-5 w-5 text-yellow-500" />;
+    }
+  };
+
+  const getVerdictColor = (verdict: 'verified' | 'contradicted' | 'unverified') => {
+    switch (verdict) {
+      case 'verified':
+        return "bg-green-500/10 text-green-600 border-green-500/30";
+      case 'contradicted':
+        return "bg-red-500/10 text-red-600 border-red-500/30";
+      case 'unverified':
+        return "bg-yellow-500/10 text-yellow-600 border-yellow-500/30";
+    }
+  };
+
+  const getVerdictLabel = (verdict: 'verified' | 'contradicted' | 'unverified') => {
+    switch (verdict) {
+      case 'verified':
+        return "Verified";
+      case 'contradicted':
+        return "Contradicted";
+      case 'unverified':
+        return "Unverified";
+    }
   };
 
   // Use sources with credibility scores if available, otherwise fall back to searchResults
@@ -163,6 +204,73 @@ const Results = () => {
             )}
           </CardContent>
         </Card>
+
+        {results.claims && results.claims.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Claim Verification Breakdown
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Individual claims from the article checked against sources
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {results.claims.map((claim, index) => (
+                  <div
+                    key={index}
+                    className={`border-2 rounded-lg p-4 ${getVerdictColor(claim.verdict)}`}
+                  >
+                    <div className="flex items-start gap-3 mb-3">
+                      {getVerdictIcon(claim.verdict)}
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <p className="font-medium text-sm leading-relaxed">
+                            "{claim.claim}"
+                          </p>
+                          <Badge className={`${getVerdictColor(claim.verdict)} border shrink-0`}>
+                            {getVerdictLabel(claim.verdict)}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {claim.explanation}
+                        </p>
+                        
+                        {claim.sourceIndexes && claim.sourceIndexes.length > 0 && results.sources && (
+                          <div className="mt-3 pt-3 border-t border-border/50">
+                            <p className="text-xs font-medium mb-2 text-muted-foreground">
+                              Referenced Sources:
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {claim.sourceIndexes.map((sourceIdx) => {
+                                const source = results.sources?.[sourceIdx];
+                                if (!source) return null;
+                                return (
+                                  <a
+                                    key={sourceIdx}
+                                    href={source.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs px-2 py-1 bg-background border border-border rounded hover:bg-secondary transition-colors inline-flex items-center gap-1"
+                                  >
+                                    {source.title.substring(0, 40)}...
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {displaySources && displaySources.length > 0 && (
           <Card>

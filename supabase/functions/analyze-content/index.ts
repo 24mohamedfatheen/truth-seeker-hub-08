@@ -91,12 +91,14 @@ Reference Sources Found:
 ${searchResults.map((r: any, i: number) => `${i + 1}. ${r.title} - ${r.snippet} (URL: ${r.url})`).join('\n')}
 
 CRITICAL INSTRUCTIONS:
-- DO NOT mark as authentic just because sources exist
-- CHECK if the article's CLAIMS match what the sources actually say
-- LOOK for contradictions between article content and source information
-- IDENTIFY misleading headlines or manipulated facts
-- EVALUATE each source's credibility and reliability
-- RATE each source's credibility from 0-100 based on: domain authority, content quality, fact-checking reputation
+1. IDENTIFY key claims and statements made in the article
+2. For EACH claim, verify it against the reference sources
+3. DO NOT mark as authentic just because sources exist
+4. CHECK if the article's CLAIMS match what the sources actually say
+5. LOOK for contradictions between article content and source information
+6. IDENTIFY misleading headlines or manipulated facts
+7. EVALUATE each source's credibility and reliability
+8. RATE each source's credibility from 0-100 based on: domain authority, content quality, fact-checking reputation
 
 Determine if the news is REAL (true and verified) or FAKE (false, misleading, or unverified).
 
@@ -105,6 +107,14 @@ Return ONLY JSON (max 150 words in details):
   "authenticity": <0-100>,
   "status": "<authentic|fake>",
   "details": "<explain why this is real or fake, focus on fact-checking>",
+  "claims": [
+    {
+      "claim": "<specific claim from article, max 100 chars>",
+      "verdict": "<verified|contradicted|unverified>",
+      "explanation": "<how sources support or contradict this, max 80 words>",
+      "sourceIndexes": [<array of source indexes 0-4 that relate to this claim>]
+    }
+  ],
   "sources": [
     {
       "title": "<source title>",
