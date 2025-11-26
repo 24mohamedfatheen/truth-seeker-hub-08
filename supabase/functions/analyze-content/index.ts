@@ -82,26 +82,33 @@ serve(async (req) => {
         const searchResults = searchData.results || [];
         
         // Analyze with AI using search results as context
-        analysisPrompt = `Analyze this news article for authenticity using the search results provided.
+        analysisPrompt = `Analyze if this news article contains TRUE or FALSE information by comparing it against reference sources.
 
-Article:
+Article to verify:
 ${content}
 
-Reference Sources:
+Reference Sources Found:
 ${searchResults.map((r: any, i: number) => `${i + 1}. ${r.title} - ${r.snippet}`).join('\n')}
 
-Evaluate: content accuracy vs sources, contradictions, language manipulation, credibility.
+CRITICAL INSTRUCTIONS:
+- DO NOT mark as authentic just because sources exist
+- CHECK if the article's CLAIMS match what the sources actually say
+- LOOK for contradictions between article content and source information
+- IDENTIFY misleading headlines or manipulated facts
+- EVALUATE if sources are credible and actually support the article's claims
 
-Return ONLY JSON (max 150 words in details, NO website recommendations):
+Determine if the news is REAL (true and verified) or FAKE (false, misleading, or unverified).
+
+Return ONLY JSON (max 150 words in details):
 {
   "authenticity": <0-100>,
-  "status": "<authentic|suspicious|fake>",
-  "details": "<concise explanation>",
+  "status": "<authentic|fake>",
+  "details": "<explain why this is real or fake, focus on fact-checking>",
   "searchResults": ${JSON.stringify(searchResults)}
 }`;
         
         messages = [
-          { role: 'system', content: 'Expert analyst. Return ONLY valid JSON. Be concise. Never recommend external verification tools.' },
+          { role: 'system', content: 'Expert fact-checker. Return ONLY valid JSON. Be critical and thorough. Focus on truth verification, not just source availability.' },
           { role: 'user', content: analysisPrompt }
         ];
         break;
@@ -111,13 +118,13 @@ Return ONLY JSON (max 150 words in details, NO website recommendations):
           throw new Error('Image data is required');
         }
         
-        analysisPrompt = `Analyze image authenticity. Check: manipulation artifacts, lighting inconsistencies, AI signatures, unnatural patterns.
+        analysisPrompt = `Determine if this image is REAL or FAKE. Check: manipulation artifacts, lighting inconsistencies, AI generation signatures, unnatural patterns, editing traces.
 
 Return ONLY JSON (max 100 words in details):
 {
   "authenticity": <0-100>,
-  "status": "<authentic|suspicious|fake>",
-  "details": "<concise findings>"
+  "status": "<authentic|fake>",
+  "details": "<explain why this is real or fake>"
 }`;
 
         messages = [
@@ -141,13 +148,13 @@ Return ONLY JSON (max 100 words in details):
         break;
 
       case 'audio':
-        analysisPrompt = `Analyze audio for deepfakes/manipulation. Check: quality consistency, noise patterns, speech naturalness, editing artifacts.
+        analysisPrompt = `Determine if this audio is REAL or FAKE. Check: deepfake signatures, quality consistency, noise patterns, speech naturalness, editing artifacts, AI-generated voice indicators.
 
 Return ONLY JSON (max 80 words in details):
 {
   "authenticity": <0-100>,
-  "status": "<authentic|suspicious|fake>",
-  "details": "<concise analysis>"
+  "status": "<authentic|fake>",
+  "details": "<explain why this is real or fake>"
 }`;
 
         messages = [
@@ -157,13 +164,13 @@ Return ONLY JSON (max 80 words in details):
         break;
 
       case 'video':
-        analysisPrompt = `Analyze video for deepfakes/manipulation. Check: frame consistency, facial movements, lip-sync, lighting, edge artifacts.
+        analysisPrompt = `Determine if this video is REAL or FAKE. Check: deepfake indicators, frame consistency, facial movements, lip-sync accuracy, lighting consistency, edge artifacts, AI manipulation signs.
 
 Return ONLY JSON (max 80 words in details):
 {
   "authenticity": <0-100>,
-  "status": "<authentic|suspicious|fake>",
-  "details": "<concise analysis>"
+  "status": "<authentic|fake>",
+  "details": "<explain why this is real or fake>"
 }`;
 
         messages = [
