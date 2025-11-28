@@ -167,17 +167,63 @@ Return ONLY JSON (max 100 words in details):
         break;
 
       case 'audio':
-        analysisPrompt = `Determine if this audio is REAL or FAKE. Check: deepfake signatures, quality consistency, noise patterns, speech naturalness, editing artifacts, AI-generated voice indicators.
+        if (!fileData) {
+          throw new Error('Audio data is required');
+        }
 
-Return ONLY JSON (max 80 words in details):
+        // First, transcribe the audio using OpenAI Whisper
+        console.log('Transcribing audio with Whisper...');
+        const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+        
+        if (!OPENAI_API_KEY) {
+          throw new Error('OPENAI_API_KEY is not configured');
+        }
+
+        // Convert base64 to binary
+        const base64Audio = fileData.split(',')[1] || fileData;
+        const binaryString = atob(base64Audio);
+        const audioBytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          audioBytes[i] = binaryString.charCodeAt(i);
+        }
+
+        // Create form data for Whisper
+        const formData = new FormData();
+        const audioBlob = new Blob([audioBytes], { type: 'audio/webm' });
+        formData.append('file', audioBlob, 'audio.webm');
+        formData.append('model', 'whisper-1');
+
+        const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: formData,
+        });
+
+        if (!whisperResponse.ok) {
+          const errorText = await whisperResponse.text();
+          console.error('Whisper API error:', errorText);
+          throw new Error(`Audio transcription failed: ${errorText}`);
+        }
+
+        const transcription = await whisperResponse.json();
+        console.log('Transcription:', transcription.text);
+
+        analysisPrompt = `Analyze this audio transcription for authenticity. Check for: unnatural speech patterns, AI-generated voice indicators, deepfake characteristics, inconsistent pacing, robotic tone, and suspicious content.
+
+Transcription:
+${transcription.text}
+
+Return ONLY JSON (max 100 words in details):
 {
   "authenticity": <0-100>,
   "status": "<authentic|fake>",
-  "details": "<explain why this is real or fake>"
+  "details": "<explain why this is real or fake based on transcription analysis>"
 }`;
 
         messages = [
-          { role: 'system', content: 'Audio forensics expert. Return ONLY valid JSON. Be brief.' },
+          { role: 'system', content: 'Audio forensics expert analyzing transcriptions. Return ONLY valid JSON. Be concise.' },
           { role: 'user', content: analysisPrompt }
         ];
         break;
