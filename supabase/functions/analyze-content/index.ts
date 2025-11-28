@@ -167,17 +167,30 @@ Return ONLY JSON (max 100 words in details):
         break;
 
       case 'audio':
+        // Check if OpenAI API key is configured
+        const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+        
+        if (!OPENAI_API_KEY) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Audio verification requires OpenAI API key configuration',
+              authenticity: 0,
+              status: 'unavailable',
+              details: 'Audio verification is currently unavailable. Please configure an OpenAI API key to enable this feature.'
+            }),
+            { 
+              status: 503, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
         if (!fileData) {
           throw new Error('Audio data is required');
         }
 
-        // First, transcribe the audio using OpenAI Whisper
+        // Transcribe the audio using OpenAI Whisper
         console.log('Transcribing audio with Whisper...');
-        const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-        
-        if (!OPENAI_API_KEY) {
-          throw new Error('OPENAI_API_KEY is not configured');
-        }
 
         // Convert base64 to binary
         const base64Audio = fileData.split(',')[1] || fileData;
