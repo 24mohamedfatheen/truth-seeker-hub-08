@@ -2,7 +2,8 @@ import { ReactNode, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, CheckCircle, Upload, Loader2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, CheckCircle, Upload, Loader2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DetectionCardProps {
@@ -13,6 +14,7 @@ interface DetectionCardProps {
   contentType: "text" | "image" | "audio" | "video";
   onAnalyze: (file: File | string, contentType: "text" | "image" | "audio" | "video") => Promise<AnalysisResult>;
   showTextInput?: boolean;
+  warningMessage?: string;
 }
 
 export interface AnalysisResult {
@@ -29,6 +31,7 @@ export const DetectionCard = ({
   contentType,
   onAnalyze,
   showTextInput = false,
+  warningMessage,
 }: DetectionCardProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState("");
@@ -90,6 +93,16 @@ export const DetectionCard = ({
             <p className="text-sm text-muted-foreground">{description}</p>
           </div>
         </div>
+
+        {/* Warning Message */}
+        {warningMessage && (
+          <Alert className="bg-warning/10 border-warning/30">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <AlertDescription className="text-sm text-warning-foreground">
+              {warningMessage}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Input Area */}
         <div className="space-y-4">

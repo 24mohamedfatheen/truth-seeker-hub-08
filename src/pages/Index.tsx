@@ -150,6 +150,7 @@ const Index = () => {
               acceptType="audio/*"
               contentType="audio"
               onAnalyze={analyzeContent}
+              warningMessage="⚠️ Experimental feature with limited accuracy. Results should be verified through additional methods."
             />
 
             <DetectionCard
