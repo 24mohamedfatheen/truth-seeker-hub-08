@@ -1,8 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { ArrowLeft, ExternalLink, CheckCircle, XCircle, ArrowUpDown, Shield, AlertCircle, HelpCircle } from "lucide-react";
+import { ArrowLeft, ExternalLink, CheckCircle, XCircle, ArrowUpDown, Shield, AlertCircle, HelpCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 interface Source {
@@ -53,14 +52,14 @@ const Results = () => {
   
   const getStatusIcon = () => {
     return isReal ? (
-      <CheckCircle className="h-8 w-8 text-green-500" />
+      <CheckCircle className="h-8 w-8 text-success" />
     ) : (
-      <XCircle className="h-8 w-8 text-red-500" />
+      <XCircle className="h-8 w-8 text-destructive" />
     );
   };
 
   const getStatusColor = () => {
-    return isReal ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500";
+    return isReal ? "bg-success/20 text-success border-success/30" : "bg-destructive/20 text-destructive border-destructive/30";
   };
 
   const getStatusText = () => {
@@ -68,9 +67,9 @@ const Results = () => {
   };
 
   const getCredibilityColor = (score: number) => {
-    if (score >= 80) return "bg-green-500/10 text-green-600 border-green-500/30";
-    if (score >= 60) return "bg-yellow-500/10 text-yellow-600 border-yellow-500/30";
-    return "bg-red-500/10 text-red-600 border-red-500/30";
+    if (score >= 80) return "bg-success/10 text-success border-success/30";
+    if (score >= 60) return "bg-warning/10 text-warning border-warning/30";
+    return "bg-destructive/10 text-destructive border-destructive/30";
   };
 
   const getCredibilityLabel = (score: number) => {
@@ -82,22 +81,22 @@ const Results = () => {
   const getVerdictIcon = (verdict: 'verified' | 'contradicted' | 'unverified') => {
     switch (verdict) {
       case 'verified':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-success" />;
       case 'contradicted':
-        return <XCircle className="h-5 w-5 text-red-500" />;
+        return <XCircle className="h-5 w-5 text-destructive" />;
       case 'unverified':
-        return <HelpCircle className="h-5 w-5 text-yellow-500" />;
+        return <HelpCircle className="h-5 w-5 text-warning" />;
     }
   };
 
   const getVerdictColor = (verdict: 'verified' | 'contradicted' | 'unverified') => {
     switch (verdict) {
       case 'verified':
-        return "bg-green-500/10 text-green-600 border-green-500/30";
+        return "bg-success/10 text-success border-success/30";
       case 'contradicted':
-        return "bg-red-500/10 text-red-600 border-red-500/30";
+        return "bg-destructive/10 text-destructive border-destructive/30";
       case 'unverified':
-        return "bg-yellow-500/10 text-yellow-600 border-yellow-500/30";
+        return "bg-warning/10 text-warning border-warning/30";
     }
   };
 
@@ -112,16 +111,13 @@ const Results = () => {
     }
   };
 
-  // Use sources with credibility scores if available, otherwise fall back to searchResults
   const baseSources = results.sources || results.searchResults;
   
-  // Filter and sort sources
   const displaySources = useMemo(() => {
     if (!baseSources) return null;
     
     let filtered = baseSources;
     
-    // Apply credibility filter (only if sources have credibility scores)
     if (results.sources && credibilityFilter !== 'all') {
       filtered = filtered.filter((source) => {
         const src = source as Source;
@@ -134,7 +130,6 @@ const Results = () => {
       });
     }
     
-    // Apply sorting (only if sources have credibility scores)
     if (results.sources && sortOrder !== 'none') {
       filtered = [...filtered].sort((a, b) => {
         const aScore = (a as Source).credibilityScore ?? 50;
@@ -147,81 +142,90 @@ const Results = () => {
   }, [baseSources, credibilityFilter, sortOrder, results.sources]);
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4">
-      <div className="container mx-auto max-w-4xl">
+    <div className="min-h-screen bg-background py-12 px-4 relative">
+      {/* Background effects */}
+      <div className="absolute inset-0 bg-[linear-gradient(hsl(280_100%_65%/0.02)_1px,transparent_1px),linear-gradient(90deg,hsl(280_100%_65%/0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/10 rounded-full blur-[150px]" />
+
+      <div className="container mx-auto max-w-4xl relative z-10">
         <Button
           variant="ghost"
           onClick={() => navigate("/")}
-          className="mb-6"
+          className="mb-6 hover:bg-primary/10"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Analysis
         </Button>
 
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl">Analysis Results</CardTitle>
-              <div className="flex items-center gap-2">
-                {getStatusIcon()}
+        {/* Main Results Card */}
+        <div className="gradient-border mb-6">
+          <div className="bg-card p-8 rounded-[calc(var(--radius)-1px)]">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <Sparkles className="h-6 w-6 text-primary" />
+                <h1 className="text-2xl font-black tracking-tight">Analysis Results</h1>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-medium">Verification Result</span>
-                <Badge className={`${getStatusColor()} text-lg px-4 py-2`}>
-                  {getStatusText()}
-                </Badge>
-              </div>
-              <div className={`w-full rounded-lg p-6 text-center ${
-                isReal ? "bg-green-500/10 border-2 border-green-500/30" : "bg-red-500/10 border-2 border-red-500/30"
-              }`}>
-                <p className={`text-2xl font-bold ${isReal ? "text-green-600" : "text-red-600"}`}>
-                  This content appears to be {isReal ? "REAL" : "FAKE"}
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Confidence: {results.authenticity}%
-                </p>
-              </div>
+              {getStatusIcon()}
             </div>
 
-            <div>
-              <h3 className="font-semibold mb-2">Analysis Summary</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                {results.details}
-              </p>
-            </div>
-
-            {results.contentPreview && (
+            <div className="space-y-6">
               <div>
-                <h3 className="font-semibold mb-2">Content Analyzed</h3>
-                <p className="text-sm text-muted-foreground bg-secondary p-4 rounded-md">
-                  {results.contentPreview}
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-sm font-medium text-muted-foreground">Verification Result</span>
+                  <Badge className={`${getStatusColor()} text-lg px-4 py-2 border font-black`}>
+                    {getStatusText()}
+                  </Badge>
+                </div>
+                <div className={`w-full rounded-xl p-8 text-center border-2 ${
+                  isReal ? "bg-success/10 border-success/30" : "bg-destructive/10 border-destructive/30"
+                }`}>
+                  <p className={`text-3xl font-black ${isReal ? "text-success" : "text-destructive"}`}>
+                    This content appears to be {isReal ? "REAL" : "FAKE"}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-3">
+                    Confidence: <span className="font-bold text-foreground">{results.authenticity}%</span>
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-bold mb-3 text-lg">Analysis Summary</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  {results.details}
                 </p>
               </div>
-            )}
-          </CardContent>
-        </Card>
 
+              {results.contentPreview && (
+                <div>
+                  <h3 className="font-bold mb-3 text-lg">Content Analyzed</h3>
+                  <p className="text-sm text-muted-foreground bg-secondary/50 p-4 rounded-xl border border-border/50">
+                    {results.contentPreview}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Claims Section */}
         {results.claims && results.claims.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Claim Verification Breakdown
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Individual claims from the article checked against sources
-              </p>
-            </CardHeader>
-            <CardContent>
+          <div className="gradient-border mb-6">
+            <div className="bg-card p-8 rounded-[calc(var(--radius)-1px)]">
+              <div className="flex items-center gap-3 mb-6">
+                <Shield className="h-6 w-6 text-primary" />
+                <div>
+                  <h2 className="text-xl font-black">Claim Verification Breakdown</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Individual claims from the article checked against sources
+                  </p>
+                </div>
+              </div>
+              
               <div className="space-y-4">
                 {results.claims.map((claim, index) => (
                   <div
                     key={index}
-                    className={`border-2 rounded-lg p-4 ${getVerdictColor(claim.verdict)}`}
+                    className={`border-2 rounded-xl p-5 ${getVerdictColor(claim.verdict)}`}
                   >
                     <div className="flex items-start gap-3 mb-3">
                       {getVerdictIcon(claim.verdict)}
@@ -253,7 +257,7 @@ const Results = () => {
                                     href={source.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-xs px-2 py-1 bg-background border border-border rounded hover:bg-secondary transition-colors inline-flex items-center gap-1"
+                                    className="text-xs px-3 py-1.5 bg-secondary/50 border border-border/50 rounded-lg hover:bg-primary/10 hover:border-primary/50 transition-all inline-flex items-center gap-1"
                                   >
                                     {source.title.substring(0, 40)}...
                                     <ExternalLink className="h-3 w-3" />
@@ -268,16 +272,17 @@ const Results = () => {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
+        {/* Sources Section */}
         {displaySources && displaySources.length > 0 && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-start justify-between">
+          <div className="gradient-border">
+            <div className="bg-card p-8 rounded-[calc(var(--radius)-1px)]">
+              <div className="flex items-start justify-between mb-6">
                 <div>
-                  <CardTitle>Source Verification</CardTitle>
+                  <h2 className="text-xl font-black">Source Verification</h2>
                   <p className="text-sm text-muted-foreground">
                     Sources analyzed with credibility ratings
                   </p>
@@ -285,46 +290,25 @@ const Results = () => {
                 
                 {results.sources && (
                   <div className="flex gap-2">
-                    <div className="flex gap-1 border border-border rounded-md p-1">
-                      <Button
-                        variant={credibilityFilter === 'all' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setCredibilityFilter('all')}
-                        className="h-8 text-xs"
-                      >
-                        All
-                      </Button>
-                      <Button
-                        variant={credibilityFilter === 'high' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setCredibilityFilter('high')}
-                        className="h-8 text-xs"
-                      >
-                        High
-                      </Button>
-                      <Button
-                        variant={credibilityFilter === 'medium' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setCredibilityFilter('medium')}
-                        className="h-8 text-xs"
-                      >
-                        Medium
-                      </Button>
-                      <Button
-                        variant={credibilityFilter === 'low' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setCredibilityFilter('low')}
-                        className="h-8 text-xs"
-                      >
-                        Low
-                      </Button>
+                    <div className="flex gap-1 border border-border/50 rounded-xl p-1 bg-secondary/30">
+                      {(['all', 'high', 'medium', 'low'] as const).map((filter) => (
+                        <Button
+                          key={filter}
+                          variant={credibilityFilter === filter ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setCredibilityFilter(filter)}
+                          className={`h-8 text-xs capitalize ${credibilityFilter === filter ? 'bg-gradient-to-r from-primary to-accent' : ''}`}
+                        >
+                          {filter}
+                        </Button>
+                      ))}
                     </div>
                     
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : sortOrder === 'asc' ? 'none' : 'desc')}
-                      className="h-8 gap-1"
+                      className="h-8 gap-1 border-border/50"
                     >
                       <ArrowUpDown className="h-3 w-3" />
                       {sortOrder === 'desc' ? 'High→Low' : sortOrder === 'asc' ? 'Low→High' : 'Sort'}
@@ -332,8 +316,7 @@ const Results = () => {
                   </div>
                 )}
               </div>
-            </CardHeader>
-            <CardContent>
+              
               <div className="space-y-4">
                 {displaySources.map((source, index) => {
                   const sourceWithCredibility = source as Source;
@@ -341,12 +324,12 @@ const Results = () => {
                   return (
                     <div
                       key={index}
-                      className="border border-border rounded-lg p-4 hover:bg-secondary/50 transition-colors"
+                      className="border border-border/50 rounded-xl p-5 hover:bg-secondary/30 transition-all"
                     >
                       <div className="flex items-start justify-between gap-4 mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium flex-1">{source.title}</h4>
+                            <h4 className="font-semibold flex-1">{source.title}</h4>
                             {hasCredibility && (
                               <Badge 
                                 className={`${getCredibilityColor(sourceWithCredibility.credibilityScore)} border text-xs`}
@@ -360,16 +343,16 @@ const Results = () => {
                             <div className="mb-3">
                               <div className="flex items-center justify-between text-xs mb-1">
                                 <span className="text-muted-foreground">Credibility Score</span>
-                                <span className="font-medium">{sourceWithCredibility.credibilityScore}%</span>
+                                <span className="font-bold">{sourceWithCredibility.credibilityScore}%</span>
                               </div>
                               <div className="w-full bg-secondary rounded-full h-2">
                                 <div
                                   className={`h-2 rounded-full transition-all ${
                                     sourceWithCredibility.credibilityScore >= 80
-                                      ? "bg-green-500"
+                                      ? "bg-gradient-to-r from-success to-accent"
                                       : sourceWithCredibility.credibilityScore >= 60
-                                      ? "bg-yellow-500"
-                                      : "bg-red-500"
+                                      ? "bg-gradient-to-r from-warning to-destructive"
+                                      : "bg-gradient-to-r from-destructive to-primary"
                                   }`}
                                   style={{ width: `${sourceWithCredibility.credibilityScore}%` }}
                                 />
@@ -380,14 +363,14 @@ const Results = () => {
                             </div>
                           )}
                           
-                          <p className="text-sm text-muted-foreground mb-2">
+                          <p className="text-sm text-muted-foreground mb-3">
                             {source.snippet}
                           </p>
                           <a
                             href={source.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                            className="text-sm text-primary hover:text-accent transition-colors inline-flex items-center gap-1 font-medium"
                           >
                             View Source
                             <ExternalLink className="h-3 w-3" />
@@ -398,8 +381,8 @@ const Results = () => {
                   );
                 })}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
       </div>
     </div>
