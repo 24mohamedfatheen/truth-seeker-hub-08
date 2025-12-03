@@ -1,6 +1,6 @@
 import { Hero } from "@/components/Hero";
 import { DetectionCard, AnalysisResult } from "@/components/DetectionCard";
-import { FileText, Image, Music, Video } from "lucide-react";
+import { FileText, Image, Music, Video, Shield, Lock, Cpu } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,6 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Check auth state
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
@@ -31,7 +30,6 @@ const Index = () => {
     input: File | string,
     contentType: "text" | "image" | "audio" | "video"
   ): Promise<AnalysisResult> => {
-    // Check if user is logged in
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -46,10 +44,8 @@ const Index = () => {
       let requestBody: any = { contentType };
 
       if (typeof input === "string") {
-        // Text content
         requestBody.content = input;
       } else {
-        // File content - convert to base64
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
@@ -59,7 +55,6 @@ const Index = () => {
         requestBody.fileData = base64;
       }
 
-      // Get the user's session token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error("No active session");
@@ -89,7 +84,6 @@ const Index = () => {
         description: `Authenticity: ${result.authenticity}%`,
       });
 
-      // Navigate to results page with data
       navigate("/results", {
         state: {
           ...result,
@@ -113,11 +107,21 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Hero />
 
-      <section id="detection" className="py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Choose Your Detection Type
+      <section id="detection" className="py-24 px-4 relative">
+        {/* Background effects */}
+        <div className="absolute inset-0 bg-[linear-gradient(hsl(280_100%_65%/0.02)_1px,transparent_1px),linear-gradient(90deg,hsl(280_100%_65%/0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/10 rounded-full blur-[150px]" />
+        
+        <div className="container mx-auto max-w-6xl relative">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2 text-sm font-medium mb-6">
+              <Cpu className="h-4 w-4 text-accent" />
+              <span className="text-muted-foreground">Neural Network Analysis</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-4">
+              <span className="text-gradient">CHOOSE YOUR</span>
+              <br />
+              <span className="text-foreground">DETECTION TYPE</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Select the type of content you want to verify for authenticity
@@ -165,10 +169,52 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Features Section */}
+      <section className="py-24 px-4 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
+        
+        <div className="container mx-auto max-w-6xl relative">
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: Shield,
+                title: "Military-Grade Security",
+                description: "Your data is protected with end-to-end encryption and never stored permanently"
+              },
+              {
+                icon: Cpu,
+                title: "Advanced AI Models",
+                description: "Powered by state-of-the-art neural networks trained on millions of samples"
+              },
+              {
+                icon: Lock,
+                title: "Privacy First",
+                description: "Analysis happens in real-time with no data retention or third-party sharing"
+              }
+            ].map((feature, i) => (
+              <div key={i} className="gradient-border p-8 text-center group hover:scale-105 transition-all duration-500">
+                <div className="inline-flex p-4 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 mb-6 group-hover:glow-primary transition-all duration-500">
+                  <feature.icon className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
+                <p className="text-muted-foreground">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="border-t border-border py-8 px-4">
-        <div className="container mx-auto text-center text-sm text-muted-foreground">
-          <p>© 2025 FakeGuard. Protecting truth with AI technology.</p>
+      <footer className="border-t border-border/50 py-12 px-4 relative">
+        <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent" />
+        <div className="container mx-auto text-center relative">
+          <div className="inline-flex items-center gap-2 mb-4">
+            <Shield className="h-6 w-6 text-primary" />
+            <span className="text-xl font-black tracking-tight">FAKEGUARD</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            © 2025 FakeGuard. Protecting truth with AI technology.
+          </p>
         </div>
       </footer>
     </div>

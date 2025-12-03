@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { User, Session } from "@supabase/supabase-js";
-import { LogOut, User as UserIcon } from "lucide-react";
+import { LogOut, User as UserIcon, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -21,7 +21,6 @@ export const AuthHeader = () => {
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -29,7 +28,6 @@ export const AuthHeader = () => {
       }
     );
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -57,7 +55,11 @@ export const AuthHeader = () => {
 
   if (!user) {
     return (
-      <Button onClick={() => navigate("/auth")} variant="outline">
+      <Button 
+        onClick={() => navigate("/auth")} 
+        variant="outline"
+        className="border-primary/50 hover:bg-primary/10 hover:border-primary transition-all duration-300"
+      >
         Login
       </Button>
     );
@@ -66,25 +68,36 @@ export const AuthHeader = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
+        <Button 
+          variant="outline" 
+          size="icon"
+          className="border-primary/50 hover:bg-primary/10 hover:border-primary transition-all duration-300"
+        >
           <UserIcon className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-56 glass border-border/50">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium">My Account</p>
+            <p className="text-sm font-semibold">My Account</p>
             <p className="text-xs text-muted-foreground truncate">
               {user.email}
             </p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+        <DropdownMenuSeparator className="bg-border/50" />
+        <DropdownMenuItem 
+          onClick={() => navigate("/dashboard")}
+          className="cursor-pointer hover:bg-primary/10 focus:bg-primary/10"
+        >
+          <LayoutDashboard className="mr-2 h-4 w-4 text-primary" />
           Dashboard
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
+        <DropdownMenuSeparator className="bg-border/50" />
+        <DropdownMenuItem 
+          onClick={handleLogout}
+          className="cursor-pointer hover:bg-destructive/10 focus:bg-destructive/10 text-destructive"
+        >
           <LogOut className="mr-2 h-4 w-4" />
           Logout
         </DropdownMenuItem>
