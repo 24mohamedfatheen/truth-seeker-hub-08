@@ -227,46 +227,46 @@ Return ONLY JSON:
           throw new Error('Video data is required');
         }
 
-        analysisPrompt = `You are a video forensics expert. Analyze this video frame/content for manipulation.
+        // Limit video frame size to prevent timeouts (max ~500KB base64)
+        const videoBase64 = fileData.split(',')[1] || fileData;
+        const videoSizeBytes = Math.ceil(videoBase64.length * 0.75);
+        const maxVideoSize = 500000; // 500KB limit
+        
+        if (videoSizeBytes > maxVideoSize) {
+          console.log(`Video frame too large (${videoSizeBytes} bytes), using simplified analysis`);
+          // Return quick analysis for large files
+          return new Response(JSON.stringify({
+            authenticity: 50,
+            status: 'suspicious',
+            details: 'Video file is too large for detailed analysis. For best results, use shorter video clips (under 10 seconds) or lower resolution. Based on file characteristics alone, no definitive assessment can be made.',
+            manipulationIndicators: null,
+            limitations: 'File size exceeded analysis limits'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
-CHECK FOR:
+        analysisPrompt = `Analyze this video frame quickly for obvious manipulation signs.
 
-1. DEEPFAKE INDICATORS:
-   - Face swapping artifacts or edge blurring
-   - Unnatural facial expressions or movements
-   - Inconsistent skin texture
-   - Eye/pupil abnormalities
-   - Lip movement artifacts
+CHECK BRIEFLY:
+- Face/body distortions or artifacts
+- Obvious editing signs (cuts, overlays)
+- Unnatural lighting or shadows
+- Background inconsistencies
 
-2. VIDEO MANIPULATION:
-   - Splicing or compositing signs
-   - Green screen artifacts
-   - Lighting inconsistencies
-   - Resolution differences between elements
-   - Temporal artifacts visible in frame
+Keep analysis FAST and BRIEF. Use 40-70 range unless obvious issues.
 
-3. AI GENERATION SIGNS:
-   - Morphing or warping artifacts
-   - Impossible physics or anatomy
-   - Background inconsistencies
-
-CRITICAL RULES:
-- Describe SPECIFIC evidence from THIS video content
-- Be honest about single-frame limitations
-- Use 40-75 range unless clear evidence
-- Real videos may have compression artifacts - distinguish from manipulation
-
-Return ONLY valid JSON:
+Return ONLY JSON (max 80 words):
 {
-  "authenticity": <number 0-100>,
+  "authenticity": <40-70>,
   "status": "<authentic|suspicious|fake>",
-  "details": "<specific observations about THIS video, max 120 words>",
-  "manipulationIndicators": ["<specific issue>"] or null,
-  "limitations": "Single frame analysis - full detection requires multi-frame review"
+  "details": "<brief observations, max 80 words>",
+  "manipulationIndicators": ["<issue>"] or null,
+  "limitations": "Single frame analysis only"
 }`;
 
         messages = [
-          { role: 'system', content: 'Video forensics expert. Analyze actual content. Be specific. Return only valid JSON.' },
+          { role: 'system', content: 'Quick video analysis. Be brief. JSON only.' },
           { 
             role: 'user', 
             content: [
@@ -345,34 +345,37 @@ Return ONLY valid JSON:
       };
     }
 
-    // Save analysis to database
+    // Save analysis to database and get the ID for feedback
+    let analysisId = null;
     try {
       const contentPreview = contentType === 'text' && content 
         ? content.substring(0, 200) 
         : `${contentType} analysis`;
 
-      const { error: dbError } = await supabase
+      const { data: insertData, error: dbError } = await supabase
         .from('analysis_results')
         .insert({
-          user_id: user.id, // Add user_id to the analysis
+          user_id: user.id,
           content_type: contentType,
           authenticity_score: result.authenticity,
           detailed_analysis: result.details,
           manipulation_indicators: result.manipulationIndicators || [],
           content_preview: contentPreview,
-        });
+        })
+        .select('id')
+        .single();
 
       if (dbError) {
         console.error("Error saving analysis to database:", dbError);
       } else {
-        console.log("Analysis saved to database successfully");
+        analysisId = insertData?.id;
+        console.log("Analysis saved to database successfully, ID:", analysisId);
       }
     } catch (dbSaveError) {
       console.error("Database save exception:", dbSaveError);
-      // Don't fail the request if DB save fails
     }
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({ ...result, analysisId }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

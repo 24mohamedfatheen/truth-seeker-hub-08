@@ -1,8 +1,11 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { ArrowLeft, ExternalLink, CheckCircle, XCircle, ArrowUpDown, Shield, AlertCircle, HelpCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, ExternalLink, CheckCircle, XCircle, ArrowUpDown, Shield, HelpCircle, Sparkles, ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Source {
   title: string;
@@ -33,6 +36,7 @@ interface ResultsState {
   searchResults?: SearchResult[];
   sources?: Source[];
   claims?: Claim[];
+  analysisId?: string;
 }
 
 const Results = () => {
@@ -42,6 +46,45 @@ const Results = () => {
   
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc' | 'none'>('desc');
   const [credibilityFilter, setCredibilityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+  const submitFeedback = async (isCorrect: boolean, userVerdict?: 'real' | 'fake') => {
+    if (!results.analysisId) {
+      toast.error('Cannot submit feedback for this analysis');
+      return;
+    }
+    
+    setSubmittingFeedback(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Please log in to submit feedback');
+        return;
+      }
+
+      const { error } = await supabase.from('user_feedback').insert({
+        analysis_id: results.analysisId,
+        user_id: user.id,
+        is_correct: isCorrect,
+        user_verdict: userVerdict || null,
+        comment: feedbackComment || null,
+      });
+
+      if (error) throw error;
+      
+      setFeedbackSubmitted(true);
+      setShowFeedbackForm(false);
+      toast.success('Thank you for your feedback! This helps improve our AI.');
+    } catch (err) {
+      console.error('Feedback error:', err);
+      toast.error('Failed to submit feedback');
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
 
   if (!results) {
     navigate("/");
@@ -201,6 +244,81 @@ const Results = () => {
                   <p className="text-sm text-muted-foreground bg-secondary/50 p-4 rounded-xl border border-border/50">
                     {results.contentPreview}
                   </p>
+                </div>
+              )}
+
+              {/* Feedback Section */}
+              {results.analysisId && !feedbackSubmitted && (
+                <div className="border-t border-border/50 pt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    <h3 className="font-bold text-lg">Was this analysis correct?</h3>
+                  </div>
+                  
+                  {!showFeedbackForm ? (
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => submitFeedback(true)}
+                        disabled={submittingFeedback}
+                        className="bg-success/20 text-success hover:bg-success/30 border border-success/30"
+                      >
+                        <ThumbsUp className="h-4 w-4 mr-2" />
+                        Yes, correct
+                      </Button>
+                      <Button
+                        onClick={() => setShowFeedbackForm(true)}
+                        disabled={submittingFeedback}
+                        className="bg-destructive/20 text-destructive hover:bg-destructive/30 border border-destructive/30"
+                      >
+                        <ThumbsDown className="h-4 w-4 mr-2" />
+                        No, incorrect
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 bg-secondary/30 p-4 rounded-xl border border-border/50">
+                      <p className="text-sm text-muted-foreground">What should the correct verdict be?</p>
+                      <div className="flex gap-3">
+                        <Button
+                          variant="outline"
+                          onClick={() => submitFeedback(false, 'real')}
+                          disabled={submittingFeedback}
+                          className="border-success/50 hover:bg-success/10"
+                        >
+                          Should be REAL
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => submitFeedback(false, 'fake')}
+                          disabled={submittingFeedback}
+                          className="border-destructive/50 hover:bg-destructive/10"
+                        >
+                          Should be FAKE
+                        </Button>
+                      </div>
+                      <Textarea
+                        placeholder="Optional: Tell us more about why (e.g., what made it obvious)"
+                        value={feedbackComment}
+                        onChange={(e) => setFeedbackComment(e.target.value)}
+                        className="bg-background/50"
+                      />
+                      <Button
+                        variant="ghost"
+                        onClick={() => setShowFeedbackForm(false)}
+                        className="text-sm"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {feedbackSubmitted && (
+                <div className="border-t border-border/50 pt-6">
+                  <div className="flex items-center gap-2 text-success">
+                    <CheckCircle className="h-5 w-5" />
+                    <span className="font-medium">Thanks for your feedback!</span>
+                  </div>
                 </div>
               )}
             </div>
