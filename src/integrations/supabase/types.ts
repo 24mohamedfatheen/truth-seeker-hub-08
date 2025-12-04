@@ -65,6 +65,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_feedback: {
+        Row: {
+          analysis_id: string | null
+          comment: string | null
+          created_at: string
+          id: string
+          is_correct: boolean
+          user_id: string
+          user_verdict: string | null
+        }
+        Insert: {
+          analysis_id?: string | null
+          comment?: string | null
+          created_at?: string
+          id?: string
+          is_correct: boolean
+          user_id: string
+          user_verdict?: string | null
+        }
+        Update: {
+          analysis_id?: string | null
+          comment?: string | null
+          created_at?: string
+          id?: string
+          is_correct?: boolean
+          user_id?: string
+          user_verdict?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_feedback_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
