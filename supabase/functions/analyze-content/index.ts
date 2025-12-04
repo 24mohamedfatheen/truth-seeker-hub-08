@@ -137,30 +137,56 @@ Return ONLY JSON (max 150 words in details):
           throw new Error('Image data is required');
         }
         
-        analysisPrompt = `Determine if this image is REAL or FAKE. Check: manipulation artifacts, lighting inconsistencies, AI generation signatures, unnatural patterns, editing traces.
+        analysisPrompt = `You are an expert digital forensics analyst. Carefully examine THIS SPECIFIC IMAGE and provide a detailed analysis.
 
-Return ONLY JSON (max 100 words in details):
+ANALYZE THIS IMAGE FOR:
+
+1. AI GENERATION INDICATORS:
+   - Look for unnatural perfection or symmetry
+   - Check text/symbols for warping or errors
+   - Examine fine details: fingers, teeth, ears, hair strands
+   - Notice if skin looks waxy or too smooth
+   - Check backgrounds for impossible architecture or warping
+
+2. PHOTO MANIPULATION:
+   - Edge artifacts around subjects (look at boundaries)
+   - Shadow direction consistency across all objects
+   - Lighting angle consistency
+   - Clone stamp patterns or repeated textures
+   - Compression artifacts concentrated in specific areas
+   - Color/brightness mismatches between elements
+
+3. IF FACES ARE PRESENT:
+   - Eye reflection consistency
+   - Natural facial asymmetry (real faces are not perfectly symmetric)
+   - Hair-face boundary naturalness
+   - Skin texture consistency
+
+CRITICAL RULES:
+- DESCRIBE SPECIFIC ELEMENTS you see in THIS image
+- DO NOT give generic responses - cite actual visual evidence
+- Real photos can have compression artifacts - distinguish from manipulation
+- Confidence should reflect evidence strength (use 40-80 range unless very clear evidence)
+- If uncertain, lean toward 50-60% authenticity
+
+Return ONLY valid JSON:
 {
-  "authenticity": <0-100>,
-  "status": "<authentic|fake>",
-  "details": "<explain why this is real or fake>"
+  "authenticity": <number 0-100>,
+  "status": "<authentic|suspicious|fake>",
+  "details": "<specific observations about THIS image, max 120 words>",
+  "manipulationIndicators": ["<specific issue found>"] or null
 }`;
 
         messages = [
           { 
             role: 'system', 
-            content: 'Image forensics expert. Return ONLY valid JSON. Be concise.' 
+            content: 'Expert image forensics analyst. Analyze the ACTUAL content of images. Be specific. Return only valid JSON.' 
           },
           { 
             role: 'user', 
             content: [
               { type: 'text', text: analysisPrompt },
-              { 
-                type: 'image_url', 
-                image_url: { 
-                  url: fileData
-                } 
-              }
+              { type: 'image_url', image_url: { url: fileData } }
             ]
           }
         ];
@@ -171,49 +197,83 @@ Return ONLY JSON (max 100 words in details):
           throw new Error('Audio data is required');
         }
 
-        // Extract audio metadata from base64
         const base64Audio = fileData.split(',')[1] || fileData;
-        const audioSize = Math.ceil(base64Audio.length * 0.75); // Approximate byte size
+        const audioSize = Math.ceil(base64Audio.length * 0.75);
         
-        analysisPrompt = `Analyze this audio file for authenticity based on its characteristics.
+        analysisPrompt = `Audio file analysis (limited capability - audio waveform analysis not available):
 
-Audio File Characteristics:
-- File size: ${audioSize} bytes
-- Format: audio/webm (browser recording)
-- Source: User uploaded audio
+File size: ${audioSize} bytes
 
-Check for:
-1. Typical file size patterns for real vs AI-generated audio
-2. Common deepfake audio indicators
-3. Suspicious characteristics in browser-recorded audio
-4. Natural human speech patterns likelihood
+NOTE: Direct audio deepfake detection requires specialized waveform analysis tools that are not available here. This analysis is LIMITED and should be treated as preliminary only.
 
-Return ONLY JSON (max 100 words in details):
+Based on general audio file characteristics, provide a cautious assessment.
+
+Return ONLY JSON:
 {
-  "authenticity": <0-100>,
-  "status": "<authentic|fake|suspicious>",
-  "details": "<explain analysis based on audio characteristics and common deepfake patterns>"
+  "authenticity": <40-65>,
+  "status": "suspicious",
+  "details": "<honest assessment noting limitations, max 80 words>",
+  "limitations": "Full audio deepfake detection requires specialized analysis"
 }`;
 
         messages = [
-          { role: 'system', content: 'Audio forensics expert. Analyze audio characteristics for authenticity. Return ONLY valid JSON. Be concise.' },
+          { role: 'system', content: 'Audio analyst. Be honest about limitations. Return ONLY valid JSON.' },
           { role: 'user', content: analysisPrompt }
         ];
         break;
 
       case 'video':
-        analysisPrompt = `Determine if this video is REAL or FAKE. Check: deepfake indicators, frame consistency, facial movements, lip-sync accuracy, lighting consistency, edge artifacts, AI manipulation signs.
+        if (!fileData) {
+          throw new Error('Video data is required');
+        }
 
-Return ONLY JSON (max 80 words in details):
+        analysisPrompt = `You are a video forensics expert. Analyze this video frame/content for manipulation.
+
+CHECK FOR:
+
+1. DEEPFAKE INDICATORS:
+   - Face swapping artifacts or edge blurring
+   - Unnatural facial expressions or movements
+   - Inconsistent skin texture
+   - Eye/pupil abnormalities
+   - Lip movement artifacts
+
+2. VIDEO MANIPULATION:
+   - Splicing or compositing signs
+   - Green screen artifacts
+   - Lighting inconsistencies
+   - Resolution differences between elements
+   - Temporal artifacts visible in frame
+
+3. AI GENERATION SIGNS:
+   - Morphing or warping artifacts
+   - Impossible physics or anatomy
+   - Background inconsistencies
+
+CRITICAL RULES:
+- Describe SPECIFIC evidence from THIS video content
+- Be honest about single-frame limitations
+- Use 40-75 range unless clear evidence
+- Real videos may have compression artifacts - distinguish from manipulation
+
+Return ONLY valid JSON:
 {
-  "authenticity": <0-100>,
-  "status": "<authentic|fake>",
-  "details": "<explain why this is real or fake>"
+  "authenticity": <number 0-100>,
+  "status": "<authentic|suspicious|fake>",
+  "details": "<specific observations about THIS video, max 120 words>",
+  "manipulationIndicators": ["<specific issue>"] or null,
+  "limitations": "Single frame analysis - full detection requires multi-frame review"
 }`;
 
         messages = [
-          { role: 'system', content: 'Video forensics expert. Return ONLY valid JSON. Be brief.' },
-          { role: 'user', content: analysisPrompt }
+          { role: 'system', content: 'Video forensics expert. Analyze actual content. Be specific. Return only valid JSON.' },
+          { 
+            role: 'user', 
+            content: [
+              { type: 'text', text: analysisPrompt },
+              { type: 'image_url', image_url: { url: fileData } }
+            ]
+          }
         ];
         break;
 

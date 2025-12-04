@@ -164,6 +164,7 @@ const Index = () => {
               acceptType="video/*"
               contentType="video"
               onAnalyze={analyzeContent}
+              warningMessage="⚠️ Analysis based on video frames only. Full deepfake detection requires specialized frame-by-frame analysis."
             />
           </div>
         </div>
