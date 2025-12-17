@@ -98,6 +98,7 @@ serve(async (req) => {
     let analysisPrompt = '';
     let messages: any[] = [];
     let model = 'google/gemini-2.5-flash';
+    let apiKeyUsed: number | undefined = undefined; // Track which API key was used for text analysis
 
     // Multiple Search1API keys for fallback
     const search1ApiKeys = [
@@ -118,11 +119,13 @@ serve(async (req) => {
         
         let searchResults: any[] = [];
         let searchSuccess = false;
+        let apiKeyUsed = 0; // Track which key was used (1-indexed for display)
         
         // Try each API key until one works
-        for (const apiKey of search1ApiKeys) {
+        for (let i = 0; i < search1ApiKeys.length; i++) {
+          const apiKey = search1ApiKeys[i];
           try {
-            console.log('Trying Search1API key...');
+            console.log(`Trying Search1API key ${i + 1}...`);
             const searchResponse = await fetch('https://api.search1api.com/search', {
               method: 'POST',
               headers: {
@@ -140,13 +143,14 @@ serve(async (req) => {
               const searchData = await searchResponse.json();
               searchResults = searchData.results || [];
               searchSuccess = true;
-              console.log('Search1API succeeded with this key');
+              apiKeyUsed = i + 1; // 1-indexed
+              console.log(`Search1API succeeded with key #${apiKeyUsed}`);
               break;
             } else {
-              console.log(`Search1API key failed with status ${searchResponse.status}, trying next...`);
+              console.log(`Search1API key ${i + 1} failed with status ${searchResponse.status}, trying next...`);
             }
           } catch (e) {
-            console.log('Search1API key error, trying next...', e);
+            console.log(`Search1API key ${i + 1} error, trying next...`, e);
           }
         }
         
@@ -527,7 +531,13 @@ Return ONLY JSON:
       console.error("Database save exception:", dbSaveError);
     }
 
-    return new Response(JSON.stringify({ ...result, analysisId }), {
+    // Include apiKeyUsed only for text content type
+    const responseData = { ...result, analysisId };
+    if (contentType === 'text' && typeof apiKeyUsed !== 'undefined') {
+      (responseData as any).apiKeyUsed = apiKeyUsed;
+    }
+
+    return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
