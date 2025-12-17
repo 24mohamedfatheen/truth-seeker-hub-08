@@ -20,6 +20,7 @@ export interface AnalysisResult {
   authenticity: number;
   status: "authentic" | "suspicious" | "fake";
   details: string;
+  apiKeyUsed?: number; // Which API key was used (1-indexed)
 }
 
 export const DetectionCard = ({
@@ -159,6 +160,14 @@ export const DetectionCard = ({
           {result && (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+              
+              {/* API Key Indicator for text analysis */}
+              {result.apiKeyUsed && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 px-3 py-1.5 rounded-lg w-fit">
+                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  <span>Search API Key #{result.apiKeyUsed} active</span>
+                </div>
+              )}
               
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
