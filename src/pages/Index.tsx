@@ -26,6 +26,46 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const extractVideoFrame = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+      
+      video.onloadedmetadata = () => {
+        // Seek to 1 second or 10% of the video
+        video.currentTime = Math.min(1, video.duration * 0.1);
+      };
+      
+      video.onseeked = () => {
+        // Set canvas size (max 800px to reduce size)
+        const scale = Math.min(1, 800 / Math.max(video.videoWidth, video.videoHeight));
+        canvas.width = video.videoWidth * scale;
+        canvas.height = video.videoHeight * scale;
+        
+        ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get base64 with lower quality for faster upload
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        
+        // Cleanup
+        URL.revokeObjectURL(video.src);
+        resolve(dataUrl);
+      };
+      
+      video.onerror = () => {
+        URL.revokeObjectURL(video.src);
+        reject(new Error('Failed to load video'));
+      };
+      
+      video.src = URL.createObjectURL(file);
+    });
+  };
+
   const analyzeContent = async (
     input: File | string,
     contentType: "text" | "image" | "audio" | "video"
@@ -46,13 +86,34 @@ const Index = () => {
       if (typeof input === "string") {
         requestBody.content = input;
       } else {
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(input);
-        });
-        requestBody.fileData = base64;
+        // For video, extract a frame instead of sending full file
+        if (contentType === "video") {
+          toast({
+            title: "Processing Video",
+            description: "Extracting frame for analysis...",
+          });
+          
+          try {
+            const frameData = await extractVideoFrame(input);
+            requestBody.fileData = frameData;
+          } catch (frameError) {
+            console.error("Frame extraction failed:", frameError);
+            toast({
+              title: "Video Processing Error",
+              description: "Could not extract video frame. Try a different video format.",
+              variant: "destructive",
+            });
+            throw frameError;
+          }
+        } else {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(input);
+          });
+          requestBody.fileData = base64;
+        }
       }
 
       const { data: { session } } = await supabase.auth.getSession();
