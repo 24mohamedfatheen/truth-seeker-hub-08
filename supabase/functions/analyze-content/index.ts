@@ -12,6 +12,50 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Fetch past feedback patterns to learn from
+async function getFeedbackLearnings(contentType: string): Promise<string> {
+  try {
+    // Get recent incorrect analyses and user corrections
+    const { data: feedback, error } = await supabase
+      .from('user_feedback')
+      .select(`
+        is_correct,
+        user_verdict,
+        comment,
+        analysis_results!inner(
+          content_type,
+          authenticity_score,
+          detailed_analysis
+        )
+      `)
+      .eq('is_correct', false)
+      .eq('analysis_results.content_type', contentType)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error || !feedback || feedback.length === 0) {
+      return '';
+    }
+
+    const patterns = feedback.map((f: any) => {
+      const wasReal = f.analysis_results?.authenticity_score > 70;
+      const shouldBe = f.user_verdict || (wasReal ? 'fake' : 'real');
+      const reason = f.comment || 'No details provided';
+      return `- AI said ${wasReal ? 'REAL' : 'FAKE'} but user corrected to ${shouldBe.toUpperCase()}. Reason: ${reason}`;
+    }).join('\n');
+
+    return `
+LEARN FROM PAST MISTAKES - Users corrected these analyses:
+${patterns}
+
+Use these corrections to improve your accuracy. Pay special attention to patterns where the AI was wrong.
+`;
+  } catch (e) {
+    console.error('Error fetching feedback:', e);
+    return '';
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -47,8 +91,13 @@ serve(async (req) => {
 
     console.log('Analyzing content type:', contentType);
 
+    // Get feedback learnings for this content type
+    const feedbackLearnings = await getFeedbackLearnings(contentType);
+    console.log('Feedback learnings loaded:', feedbackLearnings ? 'yes' : 'no');
+
     let analysisPrompt = '';
     let messages: any[] = [];
+    let model = 'google/gemini-2.5-flash';
 
     switch (contentType) {
       case 'text':
@@ -81,7 +130,6 @@ serve(async (req) => {
         const searchData = await searchResponse.json();
         const searchResults = searchData.results || [];
         
-        // Analyze with AI using search results as context
         analysisPrompt = `Analyze if this news article contains TRUE or FALSE information by comparing it against reference sources.
 
 Article to verify:
@@ -89,6 +137,8 @@ ${content}
 
 Reference Sources Found:
 ${searchResults.map((r: any, i: number) => `${i + 1}. ${r.title} - ${r.snippet} (URL: ${r.url})`).join('\n')}
+
+${feedbackLearnings}
 
 CRITICAL INSTRUCTIONS:
 1. IDENTIFY key claims and statements made in the article
@@ -137,50 +187,74 @@ Return ONLY JSON (max 150 words in details):
           throw new Error('Image data is required');
         }
         
-        analysisPrompt = `You are an expert digital forensics analyst. Carefully examine THIS SPECIFIC IMAGE and provide a detailed analysis.
+        // Use the more powerful model for images
+        model = 'google/gemini-2.5-pro';
+        
+        analysisPrompt = `You are a WORLD-CLASS digital forensics expert specializing in AI-generated image detection. Analyze THIS SPECIFIC IMAGE with extreme scrutiny.
 
-ANALYZE THIS IMAGE FOR:
+${feedbackLearnings}
 
-1. AI GENERATION INDICATORS:
-   - Look for unnatural perfection or symmetry
-   - Check text/symbols for warping or errors
-   - Examine fine details: fingers, teeth, ears, hair strands
-   - Notice if skin looks waxy or too smooth
-   - Check backgrounds for impossible architecture or warping
+CRITICAL: Most images you receive ARE AI-GENERATED. Be SKEPTICAL by default.
 
-2. PHOTO MANIPULATION:
-   - Edge artifacts around subjects (look at boundaries)
-   - Shadow direction consistency across all objects
-   - Lighting angle consistency
-   - Clone stamp patterns or repeated textures
-   - Compression artifacts concentrated in specific areas
-   - Color/brightness mismatches between elements
+## MANDATORY CHECKS FOR AI GENERATION:
 
-3. IF FACES ARE PRESENT:
-   - Eye reflection consistency
-   - Natural facial asymmetry (real faces are not perfectly symmetric)
-   - Hair-face boundary naturalness
-   - Skin texture consistency
+### 1. TEXT & SYMBOLS (AI struggles with these)
+- Look for ANY text in the image - gibberish, misspelled words, inconsistent fonts
+- Check logos, signs, watermarks for errors
+- Numbers and letters often have subtle errors
 
-CRITICAL RULES:
-- DESCRIBE SPECIFIC ELEMENTS you see in THIS image
-- DO NOT give generic responses - cite actual visual evidence
-- Real photos can have compression artifacts - distinguish from manipulation
-- Confidence should reflect evidence strength (use 40-80 range unless very clear evidence)
-- If uncertain, lean toward 50-60% authenticity
+### 2. HANDS & FINGERS (AI's biggest weakness)
+- Count fingers on each hand - wrong count = AI
+- Check finger proportions - too long/short/thick
+- Look at fingernails - often malformed in AI
+- Examine hand poses for anatomical impossibility
+
+### 3. FACES (if present)
+- Eye reflections MUST match (same light source)
+- Teeth should be consistent, not blurry/merged
+- Ear shapes should be natural
+- Hair boundaries often "melt" into skin in AI
+
+### 4. BACKGROUNDS & ENVIRONMENT
+- Look for "dream logic" - impossible architecture
+- Check patterns - AI creates impossible tile/brick patterns
+- Examine shadows - multiple light sources = suspicious
+- Background details often become surreal/nonsensical
+
+### 5. OVERALL TELLTALE SIGNS
+- "Uncanny valley" feeling - too perfect yet wrong
+- Skin texture - waxy, plasticky, or too smooth
+- Clothing folds that don't follow physics
+- Unnatural color gradients or banding
+- Hyper-detailed center with blurry/chaotic edges
+
+### 6. COMMON AI STYLES
+- Recognize Midjourney's painterly aesthetic
+- DALL-E's characteristic smoothness
+- Stable Diffusion's texture patterns
+- Gemini/Copilot's specific artifacts
+
+SCORING GUIDE:
+- 0-30%: Clear AI indicators found (wrong fingers, text errors, impossible elements)
+- 31-50%: Strong AI suspicion (uncanny valley, suspicious patterns)
+- 51-70%: Uncertain - could be either
+- 71-85%: Likely real but some edits possible
+- 86-100%: Strong evidence of authenticity (RARE - be conservative)
+
+BE SPECIFIC. Cite exact visual evidence. If you see ANYTHING suspicious, lower the score significantly.
 
 Return ONLY valid JSON:
 {
   "authenticity": <number 0-100>,
   "status": "<authentic|suspicious|fake>",
-  "details": "<specific observations about THIS image, max 120 words>",
-  "manipulationIndicators": ["<specific issue found>"] or null
+  "details": "<SPECIFIC observations about THIS image - cite actual visual evidence you see, max 150 words>",
+  "manipulationIndicators": ["<specific issue 1>", "<specific issue 2>"] or null
 }`;
 
         messages = [
           { 
             role: 'system', 
-            content: 'Expert image forensics analyst. Analyze the ACTUAL content of images. Be specific. Return only valid JSON.' 
+            content: 'You are the world\'s top AI image detection expert. You successfully identify AI-generated images 95% of the time. Be SKEPTICAL - most images sent to you ARE AI-generated. Look for specific evidence. Return only valid JSON.' 
           },
           { 
             role: 'user', 
@@ -203,6 +277,8 @@ Return ONLY valid JSON:
         analysisPrompt = `Audio file analysis (limited capability - audio waveform analysis not available):
 
 File size: ${audioSize} bytes
+
+${feedbackLearnings}
 
 NOTE: Direct audio deepfake detection requires specialized waveform analysis tools that are not available here. This analysis is LIMITED and should be treated as preliminary only.
 
@@ -227,46 +303,96 @@ Return ONLY JSON:
           throw new Error('Video data is required');
         }
 
-        // Limit video frame size to prevent timeouts (max ~500KB base64)
+        // Use powerful model for video
+        model = 'google/gemini-2.5-pro';
+
+        // Check file size
         const videoBase64 = fileData.split(',')[1] || fileData;
         const videoSizeBytes = Math.ceil(videoBase64.length * 0.75);
-        const maxVideoSize = 500000; // 500KB limit
+        const maxVideoSize = 2000000; // Increased to 2MB
+        
+        console.log(`Video frame size: ${videoSizeBytes} bytes`);
         
         if (videoSizeBytes > maxVideoSize) {
           console.log(`Video frame too large (${videoSizeBytes} bytes), using simplified analysis`);
-          // Return quick analysis for large files
+          
+          // Save to database before returning
+          const contentPreview = 'video analysis (file too large)';
+          const { data: insertData } = await supabase
+            .from('analysis_results')
+            .insert({
+              user_id: user.id,
+              content_type: contentType,
+              authenticity_score: 50,
+              detailed_analysis: 'Video file is too large for detailed analysis. Please use a shorter clip or lower resolution.',
+              manipulation_indicators: [],
+              content_preview: contentPreview,
+            })
+            .select('id')
+            .single();
+
           return new Response(JSON.stringify({
             authenticity: 50,
             status: 'suspicious',
-            details: 'Video file is too large for detailed analysis. For best results, use shorter video clips (under 10 seconds) or lower resolution. Based on file characteristics alone, no definitive assessment can be made.',
+            details: 'Video file is too large for detailed analysis. For best results, use shorter video clips (under 30 seconds) or lower resolution. Based on file characteristics alone, no definitive assessment can be made.',
             manipulationIndicators: null,
-            limitations: 'File size exceeded analysis limits'
+            limitations: 'File size exceeded analysis limits',
+            analysisId: insertData?.id
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
-        analysisPrompt = `Analyze this video frame quickly for obvious manipulation signs.
+        analysisPrompt = `You are a DEEPFAKE DETECTION EXPERT. Analyze this video frame for signs of manipulation or AI generation.
 
-CHECK BRIEFLY:
-- Face/body distortions or artifacts
-- Obvious editing signs (cuts, overlays)
-- Unnatural lighting or shadows
-- Background inconsistencies
+${feedbackLearnings}
 
-Keep analysis FAST and BRIEF. Use 40-70 range unless obvious issues.
+CRITICAL CHECKS FOR VIDEO DEEPFAKES:
 
-Return ONLY JSON (max 80 words):
+### 1. FACE ANALYSIS (if present)
+- Face boundaries - look for blur/shimmer at edges
+- Eye blinking patterns would show in frame
+- Lip sync accuracy for any speech
+- Skin texture consistency
+- Unnatural facial movements or expressions
+
+### 2. BODY & MOVEMENT
+- Body proportions - head size vs body
+- Hand visibility and accuracy
+- Clothing/body boundary artifacts
+- Unnatural poses or positions
+
+### 3. ENVIRONMENTAL CLUES
+- Lighting consistency on face vs background
+- Reflection accuracy in eyes/glasses
+- Shadow direction consistency
+- Background stability and coherence
+
+### 4. TECHNICAL ARTIFACTS
+- Compression artifacts concentrated on face
+- Resolution differences between regions
+- Color temperature mismatches
+- Frame edge irregularities
+
+SCORING:
+- 0-40%: Clear deepfake indicators
+- 41-60%: Suspicious elements present
+- 61-80%: Mostly authentic appearing
+- 81-100%: Strong authenticity (conservative)
+
+NOTE: This is single-frame analysis. Full video analysis requires frame-by-frame examination.
+
+Return ONLY JSON:
 {
-  "authenticity": <40-70>,
+  "authenticity": <0-100>,
   "status": "<authentic|suspicious|fake>",
-  "details": "<brief observations, max 80 words>",
-  "manipulationIndicators": ["<issue>"] or null,
-  "limitations": "Single frame analysis only"
+  "details": "<specific observations about this frame, cite visual evidence, max 120 words>",
+  "manipulationIndicators": ["<issue 1>", "<issue 2>"] or null,
+  "limitations": "Single frame analysis - full video examination recommended"
 }`;
 
         messages = [
-          { role: 'system', content: 'Quick video analysis. Be brief. JSON only.' },
+          { role: 'system', content: 'Expert deepfake detector. Analyze video frames for manipulation. Be specific about evidence. Return only valid JSON.' },
           { 
             role: 'user', 
             content: [
@@ -281,6 +407,8 @@ Return ONLY JSON (max 80 words):
         throw new Error('Invalid content type');
     }
 
+    console.log('Calling AI with model:', model);
+
     // Call Lovable AI Gateway
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -289,9 +417,8 @@ Return ONLY JSON (max 80 words):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: model,
         messages: messages,
-        temperature: 0.3,
       }),
     });
 
