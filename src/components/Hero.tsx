@@ -94,17 +94,17 @@ export const Hero = () => {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-6 pt-16 max-w-3xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pt-16 max-w-3xl mx-auto px-4 sm:px-0">
             {[
               { value: "99.8%", label: "Accuracy Rate" },
               { value: "<2s", label: "Analysis Time" },
               { value: "256-bit", label: "Encryption" },
             ].map((stat, i) => (
-              <div key={i} className="gradient-border p-6 text-center">
-                <div className="text-3xl md:text-4xl font-black text-gradient mb-2">
+              <div key={i} className="gradient-border p-4 sm:p-6 text-center">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-black text-gradient mb-2">
                   {stat.value}
                 </div>
-                <div className="text-sm text-muted-foreground uppercase tracking-wider">
+                <div className="text-xs sm:text-sm text-muted-foreground uppercase tracking-wider">
                   {stat.label}
                 </div>
               </div>
