@@ -99,36 +99,61 @@ serve(async (req) => {
     let messages: any[] = [];
     let model = 'google/gemini-2.5-flash';
 
+    // Multiple Search1API keys for fallback
+    const search1ApiKeys = [
+      SEARCH1API_KEY,
+      '3128939A-7BC7-4E25-9D2D-5B1DBC56388C',
+      'DF50ACC8-B148-4ECD-9A70-68B814BA22B5',
+      '9FB564F9-8307-4878-B90E-7AE12149A714'
+    ].filter(Boolean);
+
     switch (contentType) {
       case 'text':
-        // Use search1api to verify news articles
-        if (!SEARCH1API_KEY) {
-          throw new Error('SEARCH1API_KEY is not configured');
+        // Use search1api to verify news articles with fallback keys
+        if (search1ApiKeys.length === 0) {
+          throw new Error('No Search1API keys configured');
         }
 
         console.log('Using search1api for news article verification');
         
-        // Search for related articles using search1api
-        const searchResponse = await fetch('https://api.search1api.com/search', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${SEARCH1API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: content.substring(0, 500), // Use first 500 chars as search query
-            max_results: 5,
-            search_service: 'google'
-          }),
-        });
+        let searchResults: any[] = [];
+        let searchSuccess = false;
+        
+        // Try each API key until one works
+        for (const apiKey of search1ApiKeys) {
+          try {
+            console.log('Trying Search1API key...');
+            const searchResponse = await fetch('https://api.search1api.com/search', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                query: content.substring(0, 500),
+                max_results: 5,
+                search_service: 'google'
+              }),
+            });
 
-        if (!searchResponse.ok) {
-          console.error('Search1API error:', searchResponse.status);
-          throw new Error('Failed to verify article with search service');
+            if (searchResponse.ok) {
+              const searchData = await searchResponse.json();
+              searchResults = searchData.results || [];
+              searchSuccess = true;
+              console.log('Search1API succeeded with this key');
+              break;
+            } else {
+              console.log(`Search1API key failed with status ${searchResponse.status}, trying next...`);
+            }
+          } catch (e) {
+            console.log('Search1API key error, trying next...', e);
+          }
         }
-
-        const searchData = await searchResponse.json();
-        const searchResults = searchData.results || [];
+        
+        if (!searchSuccess) {
+          console.error('All Search1API keys failed');
+          throw new Error('Failed to verify article - all API keys exhausted');
+        }
         
         analysisPrompt = `Analyze if this news article contains TRUE or FALSE information by comparing it against reference sources.
 
